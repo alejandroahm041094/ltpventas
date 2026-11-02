@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFE600">
+<meta name="robots" content="noindex">
+<title>LTP Ventas · PRUEBA (ubicación)</title>
+<link rel="icon" href="/logo.png">
+<style>
+html,body{margin:0;padding:0;height:100%;background:#FFE600;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+#v{position:fixed;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.82);color:#fff;text-align:center;-webkit-user-select:none;user-select:none}
+#b{width:190px;height:190px;border-radius:50%;border:6px solid #fff;background:#D0101A;color:#fff;font-size:72px;box-shadow:0 0 0 0 rgba(208,16,26,.7)}
+#b.on{animation:p 1.2s infinite}@keyframes p{0%{box-shadow:0 0 0 0 rgba(255,230,0,.8)}100%{box-shadow:0 0 0 40px rgba(255,230,0,0)}}
+#t{font-size:24px;font-weight:900;margin:22px 12px 6px}#s{font-size:16px;opacity:.85;margin:0 16px}
+#x{margin-top:28px;background:none;border:2px solid #fff;color:#fff;border-radius:10px;padding:10px 22px;font-size:16px}
+</style>
+</head>
+<body>
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbzDzr7i6hEu59Zv-uEVapybLnlcM6-EKL0fzAraJVBnGGAZS3CV4U6f9orJYQBsRXTWKA/exec" title="LTP Ventas PRUEBA" allow="geolocation; camera; microphone; clipboard-write"></iframe>
+<div id="v"><button id="b">🎤</button><div id="t">Toca para hablar</div><div id="s"></div><button id="x">Cancelar</button></div>
+<script>
+// Página de PRUEBA: graba la voz aquí (página principal, sí tiene micrófono) y se la pasa a la app de TEST.
+(function(){
+var V=document.getElementById("v"),B=document.getElementById("b"),T=document.getElementById("t"),S=document.getElementById("s");
+var src=null,org=null,rec=null,st=null,ch=[],cancel=false,tmax=null,ac=null,raf=0;
+function ok(o){return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(o);}
+function send(m){if(src)src.postMessage(m,org);}
+function show(t,s,on){V.style.display="flex";T.textContent=t;S.textContent=s||"";B.className=on?"on":"";}
+function hide(){V.style.display="none";}
+function limpiar(){clearTimeout(tmax);cancelAnimationFrame(raf);if(ac)try{ac.close();}catch(e){}ac=null;if(st)st.getTracks().forEach(function(t){t.stop();});st=null;}
+function silencio(){try{var C=window.AudioContext||window.webkitAudioContext;if(!C)return;ac=new C();if(ac.state==="suspended")ac.resume();var an=ac.createAnalyser();an.fftSize=1024;ac.createMediaStreamSource(st).connect(an);
+ var buf=new Uint8Array(an.fftSize),t0=Date.now(),hablo=false,ult=Date.now();
+ (function loop(){an.getByteTimeDomainData(buf);var mx=0;for(var i=0;i<buf.length;i++){var d=Math.abs(buf[i]-128);if(d>mx)mx=d;}
+  if(mx>14){hablo=true;ult=Date.now();}
+  if(hablo&&Date.now()-ult>1800&&Date.now()-t0>2000){parar();return;}
+  if(!hablo&&Date.now()-t0>9000){parar();return;}
+  raf=requestAnimationFrame(loop);})();}catch(e){}}
+function empezar(){if(rec&&rec.state==="recording"){parar();return;}
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){hide();send({ltpVoz:"error",msg:"Este navegador no permite grabar."});return;}
+ cancel=false;navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){st=s;ch=[];
+  var mt=["audio/mp4","audio/webm;codecs=opus","audio/webm"].filter(function(x){return MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(x);})[0];
+  rec=new MediaRecorder(s,mt?{mimeType:mt}:undefined);rec.ondataavailable=function(e){if(e.data&&e.data.size)ch.push(e.data);};
+  rec.onstop=function(){var m=(rec.mimeType||mt||"audio/mp4").split(";")[0];limpiar();if(cancel){hide();send({ltpVoz:"cancel"});return;}
+   var b=new Blob(ch,{type:m});if(!b.size){hide();send({ltpVoz:"error",msg:"No se grabó audio."});return;}
+   show("⏳ Buscando productos…","",false);var f=new FileReader();f.onload=function(){send({ltpVoz:"audio",m:m,d:String(f.result).split(",")[1]});setTimeout(hide,400);};f.readAsDataURL(b);};
+  rec.start();show("Escuchando…","Habla. Toca el micrófono para terminar.",true);tmax=setTimeout(parar,45000);silencio();
+ }).catch(function(e){if(e&&e.name==="NotAllowedError"&&!V.dataset.r){V.dataset.r=1;show("Toca para hablar","Permite el micrófono cuando el iPhone lo pida.",false);return;}
+  hide();send({ltpVoz:"error",msg:"No hay permiso de micrófono. Revísalo en Ajustes › Safari › Micrófono."});});}
+function parar(){if(rec&&rec.state==="recording")rec.stop();}
+B.onclick=function(){V.dataset.r="";empezar();};
+document.getElementById("x").onclick=function(){cancel=true;if(rec&&rec.state==="recording")rec.stop();else{limpiar();hide();send({ltpVoz:"cancel"});}};
+window.addEventListener("message",function(e){if(!ok(e.origin))return;var x=e.data;if(!x||!x.ltpVoz)return;src=e.source;org=e.origin;
+ if(x.ltpVoz==="ping"){send({ltpVoz:"pong"});return;}
+ if(x.ltpVoz==="start"){V.dataset.r="";empezar();return;}
+ if(x.ltpVoz==="stop"){cancel=!!x.cancel;parar();if(cancel&&!(rec&&rec.state==="recording")){limpiar();hide();}}});
+})();
+
+// Puente de UBICACIÓN (motorizados): la app pide {ltpGeo:'get'}; esta página (nivel superior, ltpventas.com) obtiene el GPS y responde.
+window.addEventListener("message",function(e){if(!ok(e.origin))return;var x=e.data;if(!x||!x.ltpGeo)return;var s=e.source,o=e.origin;
+ if(x.ltpGeo==="ping"){s.postMessage({ltpGeo:"pong"},o);return;}
+ if(x.ltpGeo==="get"){if(!navigator.geolocation){s.postMessage({ltpGeo:"pos",err:"sin GPS en este navegador"},o);return;}
+  navigator.geolocation.getCurrentPosition(function(p){s.postMessage({ltpGeo:"pos",lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:p.timestamp},o);},
+   function(er){s.postMessage({ltpGeo:"pos",err:er.code===1?"permiso denegado":er.code===3?"tiempo agotado":"sin señal"},o);},{enableHighAccuracy:true,timeout:10000,maximumAge:30000});}});
+</script>
+</body>
+</html>
