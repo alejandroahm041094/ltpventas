@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFE600">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="LTP Moto">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>LTP Moto</title>
+<link rel="manifest" href="/moto/manifest.json">
+<link rel="icon" href="/moto/icon-192.png">
+<link rel="apple-touch-icon" href="/moto/apple-touch-icon.png">
+<style>
+html,body{margin:0;padding:0;height:100%;background:#FFE600;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+#v{position:fixed;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.85);color:#fff;text-align:center;padding:20px;box-sizing:border-box}
+#b{width:200px;height:200px;border-radius:50%;border:6px solid #fff;background:#D0101A;color:#fff;font-size:80px;animation:p 1.2s infinite}
+@keyframes p{0%{box-shadow:0 0 0 0 rgba(255,230,0,.8)}100%{box-shadow:0 0 0 40px rgba(255,230,0,0)}}
+#t{font-size:24px;font-weight:900;margin:22px 8px 6px}#s{font-size:16px;opacity:.9;margin:0 8px;max-width:420px}
+#x{margin-top:26px;background:none;border:2px solid #fff;color:#fff;border-radius:10px;padding:10px 22px;font-size:16px}
+</style>
+</head>
+<body>
+<!-- PWA de MOTORIZADOS (FASE 2B, 13-11-2026). Por ahora apunta a la app de PRUEBA (TEST). -->
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbzDzr7i6hEu59Zv-uEVapybLnlcM6-EKL0fzAraJVBnGGAZS3CV4U6f9orJYQBsRXTWKA/exec" title="LTP Moto" allow="geolocation; camera; microphone; clipboard-write"></iframe>
+<div id="v"><button id="b">🔔</button><div id="t">Toca para activar los avisos</div><div id="s">Cuando el teléfono pregunte, elige «Permitir».</div><button id="x">Ahora no</button></div>
+<script type="module">
+// Avisos push (Firebase Cloud Messaging). Esta página (nivel superior) pide el permiso con un toque y le pasa el token a la app (iframe).
+var CFG={apiKey:"AIzaSyAy05bElrOvKFaGgolj2XPSa7MTmQRmFTw",authDomain:"ltp-ventas.firebaseapp.com",projectId:"ltp-ventas",storageBucket:"ltp-ventas.firebasestorage.app",messagingSenderId:"101527825298",appId:"1:101527825298:web:bfecef21020be3e7d6af4b"};
+var VAPID="BJtRW9fd9yQUm2bvWomDZ2z1rNEeq3dQCv4Re5DKIPgxz-xIyQNtCvu1mcb6e0QrwEYH6eV7LqX2FsmIhZkqfP8";
+var FB="https://www.gstatic.com/firebasejs/10.12.2/";
+var V=document.getElementById("v"),src=null,org=null,FBM=null;
+var abrir=new URLSearchParams(location.search).get("ir")==="comandas";
+var ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+var standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+var soporte="serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+var REG=soporte?navigator.serviceWorker.register("/moto/sw.js",{scope:"/moto/"}).catch(function(e){console.error(e);return null;}):Promise.resolve(null);
+function ok(o){return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(o);}
+function send(m){if(src)src.postMessage(m,org);}
+function perm(){return soporte?Notification.permission:"";}
+function estado(){send({ltpPush:"estado",soporte:soporte,ios:ios,standalone:standalone,perm:perm(),abrir:abrir});abrir=false;}
+async function token(){var r=await REG;if(!r)throw new Error("sin service worker");await navigator.serviceWorker.ready;
+ if(!FBM){var A=await import(FB+"firebase-app.js"),M=await import(FB+"firebase-messaging.js");FBM={M:M,m:M.getMessaging(A.initializeApp(CFG))};}
+ return FBM.M.getToken(FBM.m,{vapidKey:VAPID,serviceWorkerRegistration:r});}
+function mandaToken(){token().then(function(t){window.__ltpTok=t;send({ltpPush:"token",t:t||""});}).catch(function(e){console.error(e);send({ltpPush:"error",msg:String(e&&e.message||e),perm:perm()});});}
+document.getElementById("b").onclick=function(){V.style.display="none";
+ Notification.requestPermission().then(function(p){if(p==="granted")mandaToken();else send({ltpPush:"error",perm:p});});};
+document.getElementById("x").onclick=function(){V.style.display="none";send({ltpPush:"error",perm:perm()});};
+window.addEventListener("message",function(e){if(!ok(e.origin))return;var x=e.data;if(!x||!x.ltpPush)return;src=e.source;org=e.origin;
+ if(x.ltpPush==="hola"){estado();if(x.u&&perm()==="granted")mandaToken();return;}
+ if(x.ltpPush==="pedir"){if(!soporte){estado();return;}if(perm()==="granted"){mandaToken();return;}V.style.display="flex";return;}
+ if(x.ltpPush==="token"){if(perm()==="granted")mandaToken();}});
+if(soporte)navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.ltpPush==="abrir")send({ltpPush:"abrir"});});
+</script>
+<script>
+// Puente de UBICACIÓN (igual que prueba-geo.html): la app pide {ltpGeo:'get'} y esta página responde con el GPS.
+(function(){function ok(o){return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(o);}
+window.addEventListener("message",function(e){if(!ok(e.origin))return;var x=e.data;if(!x||!x.ltpGeo)return;var s=e.source,o=e.origin;
+ if(x.ltpGeo==="ping"){s.postMessage({ltpGeo:"pong"},o);return;}
+ if(x.ltpGeo==="get"){if(!navigator.geolocation){s.postMessage({ltpGeo:"pos",err:"sin GPS en este navegador"},o);return;}
+  navigator.geolocation.getCurrentPosition(function(p){s.postMessage({ltpGeo:"pos",lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:p.timestamp},o);},
+   function(er){s.postMessage({ltpGeo:"pos",err:er.code===1?"permiso denegado":er.code===3?"tiempo agotado":"sin señal"},o);},{enableHighAccuracy:true,timeout:10000,maximumAge:30000});}});})();
+</script>
+</body>
+</html>
