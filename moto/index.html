@@ -24,7 +24,7 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
 </style>
 </head>
 <body>
-<!-- PWA de MOTORIZADOS (FASE 2B, 13-11-2026). Apunta a la app REAL (PROD, desde 13-11-2026 v166). -->
+<!-- PWA de MOTORIZADOS (FASE 2B, 13-11-2026). Apunta a la app REAL (PROD). 13-11: + refresco solo (ltpF2c). -->
 <iframe id="app" src="https://script.google.com/macros/s/AKfycbwjogkD32xSsTWQx7Tf9iP7Ubwn99wLW52pv9Qxhytnzr3JZkmv6XQdBikusAktAqs5IQ/exec" title="LTP Moto" allow="geolocation; camera; microphone; clipboard-write"></iframe>
 <div id="v"><button id="b">🔔</button><div id="t">Toca para activar los avisos</div><div id="s">Cuando el teléfono pregunte, elige «Permitir».</div><button id="x">Ahora no</button></div>
 <script type="module">
@@ -45,7 +45,8 @@ function estado(){send({ltpPush:"estado",soporte:soporte,ios:ios,standalone:stan
 async function token(){var r=await REG;if(!r)throw new Error("sin service worker");await navigator.serviceWorker.ready;
  if(!FBM){var A=await import(FB+"firebase-app.js"),M=await import(FB+"firebase-messaging.js");FBM={M:M,m:M.getMessaging(A.initializeApp(CFG))};}
  return FBM.M.getToken(FBM.m,{vapidKey:VAPID,serviceWorkerRegistration:r});}
-function mandaToken(){token().then(function(t){window.__ltpTok=t;send({ltpPush:"token",t:t||""});}).catch(function(e){console.error(e);send({ltpPush:"error",msg:String(e&&e.message||e),perm:perm()});});}
+// ltpF2c: reintenta getToken (en iPhone a veces falla la primera vez)
+function mandaToken(n){n=n||0;token().then(function(t){if(!t)throw new Error("token vacío");window.__ltpTok=t;send({ltpPush:"token",t:t});}).catch(function(e){console.error(e);if(n<2&&perm()==="granted"){setTimeout(function(){mandaToken(n+1);},n?4000:1500);return;}send({ltpPush:"error",msg:String(e&&e.message||e),perm:perm()});});}
 document.getElementById("b").onclick=function(){V.style.display="none";
  Notification.requestPermission().then(function(p){if(p==="granted")mandaToken();else send({ltpPush:"error",perm:p});});};
 document.getElementById("x").onclick=function(){V.style.display="none";send({ltpPush:"error",perm:perm()});};
@@ -53,7 +54,10 @@ window.addEventListener("message",function(e){if(!ok(e.origin))return;var x=e.da
  if(x.ltpPush==="hola"){estado();if(x.u&&perm()==="granted")mandaToken();return;}
  if(x.ltpPush==="pedir"){if(!soporte){estado();return;}if(perm()==="granted"){mandaToken();return;}V.style.display="flex";return;}
  if(x.ltpPush==="token"){if(perm()==="granted")mandaToken();}});
-if(soporte)navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.ltpPush==="abrir")send({ltpPush:"abrir"});});
+if(soporte)navigator.serviceWorker.addEventListener("message",function(e){var k=e.data&&e.data.ltpPush;if(k==="abrir"||k==="nueva")send({ltpPush:k});});
+// ltpF2c: al volver a primer plano, avisa a la app para que recargue
+function ltpF2cVis(){if(document.visibilityState==="visible")send({ltpPush:"vis"});}
+document.addEventListener("visibilitychange",ltpF2cVis);addEventListener("pageshow",ltpF2cVis);addEventListener("focus",ltpF2cVis);
 </script>
 <script>
 // Puente de UBICACIÓN (igual que prueba-geo.html): la app pide {ltpGeo:'get'} y esta página responde con el GPS.
